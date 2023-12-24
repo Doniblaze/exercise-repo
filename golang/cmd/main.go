@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/Doniblaze/exercise-repo/internal/section1"
 	"github.com/Doniblaze/exercise-repo/internal/section2"
@@ -80,7 +82,15 @@ func main() {
 	case 7:
 		//RESTful APIs
 		fmt.Println("a basic RESTful API for a todo list. Include operations to create, read, update, and delete tasks. Used in-memory storage for simplicity.")
-		section3.RunRESTfulApiExercise()
+		shutdown := make(chan os.Signal, 1)
+		signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM)
+		// Run the RESTful API in a separate Goroutine
+		go section3.RunRESTfulApiExercise()
+
+		<-shutdown
+
+		fmt.Println("Exiting the application.")
+
 	}
 
 }

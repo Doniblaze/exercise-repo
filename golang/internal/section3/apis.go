@@ -4,33 +4,44 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"sync"
+
+	"github.com/gorilla/mux"
 )
 
 func RunRESTfulApiExercise() {
+
+	r := mux.NewRouter() // Create an instance of the router
 	taskStore := NewTaskStore()
-	http.HandleFunc("/tasks", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			GetAllTasksHandler(w, r, taskStore)
-		case http.MethodPost:
-			CreateTaskHandler(w, r, taskStore)
-		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
-	http.HandleFunc("/tasks/", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			GetTaskHandler(w, r, taskStore)
-		case http.MethodPut:
-			UpdateTaskHandler(w, r, taskStore)
-		case http.MethodDelete:
-			DeleteTaskHandler(w, r, taskStore)
-		default:
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		}
-	})
+
+	// Register the route for GET requests to /get-all-tasks
+	r.HandleFunc("/get-all-tasks", func(w http.ResponseWriter, r *http.Request) {
+		GetAllTasksHandler(w, r, taskStore)
+	}).Methods("GET")
+	// Regiser the route for POST requests to /create-tasks
+	r.HandleFunc("/create-tasks", func(w http.ResponseWriter, r *http.Request) {
+		CreateTaskHandler(w, r, taskStore)
+	}).Methods("POST")
+	// Register the route for GET requests to /get-tasks
+	r.HandleFunc("/get-tasks/{id}", func(w http.ResponseWriter, r *http.Request) {
+		GetTaskHandler(w, r, taskStore)
+	}).Methods("GET")
+	// Register the route for PUT requests to /update-tasks
+	r.HandleFunc("/update-tasks/{id}", func(w http.ResponseWriter, r *http.Request) {
+		UpdateTaskHandler(w, r, taskStore)
+	}).Methods("PUT")
+	// Register the route for DELETE requests to /delete-tasks
+	r.HandleFunc("/delete-tasks/{id}", func(w http.ResponseWriter, r *http.Request) {
+		DeleteTaskHandler(w, r, taskStore)
+	}).Methods("DELETE")
+
+	http.Handle("/", r)
+	// Start the HTTP server
+	err := http.ListenAndServe(":8080", nil)
+	if err != nil {
+		fmt.Println("Error:", err)
+	}
 }
 
 // model
@@ -135,6 +146,8 @@ func CreateTaskHandler(w http.ResponseWriter, r *http.Request, taskStore *TaskSt
 }
 
 func GetTaskHandler(w http.ResponseWriter, r *http.Request, taskStore *TaskStore) {
+
+	fmt.Println("Received request path:", r.URL.RequestURI())
 	id, ok := GetIDFromURL(r)
 	if !ok {
 		http.Error(w, "Invalid task ID", http.StatusBadRequest)
@@ -190,9 +203,18 @@ func DeleteTaskHandler(w http.ResponseWriter, r *http.Request, taskStore *TaskSt
 }
 
 func GetIDFromURL(r *http.Request) (int, bool) {
-	var id int
-	_, err := fmt.Sscanf(r.URL.Path, "/tasks/%d", &id)
-	return id, err == nil
+	vars := mux.Vars(r)
+	idStr, ok := vars["id"]
+	if !ok {
+		return 0, false
+	}
+
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		return 0, false
+	}
+
+	return id, true
 }
 
 func RespondJSON(w http.ResponseWriter, data interface{}) {
